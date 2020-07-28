@@ -28,7 +28,7 @@ function Wechat(opts) {
 
             // 合法则使用，不合法则更新
             if (this.isValidAccessToken(data)) {
-                Promise.resolve(data);
+                return Promise.resolve(data);
             } else {
                 return this.updateAccessToken();
             }
