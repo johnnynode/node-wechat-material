@@ -34,8 +34,8 @@ function Wechat(opts) {
             }
         })
         .then((data) => {
-            that.access_token = data.access_token;
-            that.expires_in = data.expires_in;
+            this.access_token = data.access_token;
+            this.expires_in = data.expires_in;
         });
 }
 

@@ -1,6 +1,6 @@
 'use strict'
 
-var Promise = require('bluebird');
+var Promise = require('../../../04/code1/wx/node_modules/bluebird');
 var request = Promise.promisify(require('request'));
 
 var prefix = 'https://api.weixin.qq.com/cgi-bin/';
@@ -34,8 +34,8 @@ function Wechat(opts) {
             }
         })
         .then((data) => {
-            that.access_token = data.access_token;
-            that.expires_in = data.expires_in;
+            this.access_token = data.access_token;
+            this.expires_in = data.expires_in;
         });
 }
 
