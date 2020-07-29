@@ -21,6 +21,15 @@ var api = {
         update: prefix + 'material/update_news',
         count: prefix + 'material/get_materialcount',
         batch: prefix + 'material/batchget_material'
+    },
+    group: {
+        create: prefix + 'groups/create',
+        fetch: prefix + 'groups/get',
+        check: prefix + 'groups/getid',
+        update: prefix + 'groups/update',
+        move: prefix + 'groups/members/update',
+        batchupdate: prefix + '/groups/members/update',
+        del: prefix + 'groups/delete',
     }
 }
 
@@ -76,6 +85,121 @@ Wechat.prototype.updateAccessToken = () => {
                 data.expires_in = expires_in;
                 resolve(data);
             });
+    });
+}
+
+// 通用的获取token的接口
+Wechat.prototype.fetchAccessToken = (type, filepath) => {
+    if (this.access_token && this.expires_in) {
+        if (this.isValidAccessToken(this)) {
+            return Promise.resolve(this);
+        }
+    }
+
+    // 票据的读写
+    this.getAccessToken()
+        .then((data) => {
+            // 解析本地token, 如果没有，那么直接获取
+            try {
+                data = JSON.parse(data);
+            } catch (e) {
+                return this.updateAccessToken();
+            }
+
+            // 合法则使用，不合法则更新
+            if (this.isValidAccessToken(data)) {
+                return Promise.resolve(data);
+            } else {
+                return this.updateAccessToken();
+            }
+        })
+        .then((data) => {
+            this.access_token = data.access_token;
+            this.expires_in = data.expires_in;
+
+            this.saveAccessToken(data);
+            return Promise.resolve(data);
+        });
+
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = api.uploadMaterial + '?access_token=' + data.access_token + '&type=' + type;
+                request({ method: 'POST', url: url, formData: form, json: true })
+                    .then((response) => {
+                        var _data = response[1];
+                        _data ? resolve(data) : reject('upload material error!');
+                    })
+                    .catch((err) => {
+                        reject(err);
+                    });
+            })
+    });
+}
+
+// 回复程序封装
+Wechat.prototype.reply = () => {
+    var content = this.body;
+    var msg = this.weixin;
+    var xml = util.tpl(content, msg);
+
+    this.status = 200;
+    this.type = 'application/xml';
+    this.body = xml;
+}
+
+// 上传素材 默认临时素材 material:如果是图文传递的是数组,如果是图片或视频传递的是字符串的路径
+Wechat.prototype.uploadMaterial = (type, material, permanent) => {
+    var form = {};
+    var uploadUrl = api.temporary.upload;
+    // 永久素材的判断
+    if (permanent) {
+        uploadUrl = api.permanent.upload
+            // from能够兼容所有上传类型，包括图文消息
+        _.extend(form, permanent);
+    }
+    if (type === 'pic') {
+        uploadUrl = api.permanent.uploadNewsPic
+    }
+    if (type === 'news') {
+        uploadUrl = api.permanent.uploadNews;
+        form = material;
+    } else {
+        // 文件路径
+        form.media = fs.createReadStream(material);
+    }
+
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = uploadUrl + '?access_token=' + data.access_token;
+                if (!permanent) {
+                    url += '&type=' + type
+                } else {
+                    form.access_token = data.access_token;
+                }
+
+                var opts = {
+                    method: 'POST',
+                    url: url,
+                    json: true,
+                }
+
+                if (type === 'news') {
+                    opts.body = form;
+                } else {
+                    opts.formData = form;
+                }
+                // 微信认证的订阅号并不支持永久素材上传, 测试的公众号也不稳定
+                request(opts)
+                    .then((response) => {
+                        var _data = response[1];
+                        _data ? resolve(data) : reject('upload material error!');
+                    })
+                    .catch((err) => {
+                        reject(err);
+                    });
+            })
     });
 }
 
@@ -199,115 +323,119 @@ Wechat.prototype.batchMaterial = (opts) => {
     });
 }
 
-Wechat.prototype.reply = () => {
-    var content = this.body;
-    var msg = this.weixin;
-    var xml = util.tpl(content, msg);
-
-    this.status = 200;
-    this.type = 'application/xml';
-    this.body = xml;
-}
-
-// 上传素材 默认临时素材 material:如果是图文传递的是数组,如果是图片或视频传递的是字符串的路径
-Wechat.prototype.uploadMaterial = (type, material, permanent) => {
-    var form = {};
-    var uploadUrl = api.temporary.upload;
-    // 永久素材的判断
-    if (permanent) {
-        uploadUrl = api.permanent.upload
-            // from能够兼容所有上传类型，包括图文消息
-        _.extend(form, permanent);
-    }
-    if (type === 'pic') {
-        uploadUrl = api.permanent.uploadNewsPic
-    }
-    if (type === 'news') {
-        uploadUrl = api.permanent.uploadNews;
-        form = material;
-    } else {
-        // 文件路径
-        form.media = fs.createReadStream(material);
-    }
-
+// 用户分组
+Wechat.prototype.createGroup = (name) => {
     return new Promise((resolve, reject) => {
         this.fetchAccessToken()
             .then((data) => {
-                var url = uploadUrl + '?access_token=' + data.access_token;
-                if (!permanent) {
-                    url += '&type=' + type
-                } else {
-                    form.access_token = data.access_token;
-                }
-
+                var url = api.group.create + '?access_token=' + data.access_token;
                 var opts = {
-                    method: 'POST',
-                    url: url,
-                    json: true,
+                    group: { name: name }
                 }
-
-                if (type === 'news') {
-                    opts.body = form;
-                } else {
-                    opts.formData = form;
-                }
-                // 微信认证的订阅号并不支持永久素材上传, 测试的公众号也不稳定
-                request(opts)
+                request({ method: 'POST', url: url, body: opts, json: true })
                     .then((response) => {
-                        var _data = response[1];
-                        _data ? resolve(data) : reject('upload material error!');
-                    })
-                    .catch((err) => {
-                        reject(err);
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
                     });
             })
     });
 }
 
-// 通用的获取token的接口
-Wechat.prototype.fetchAccessToken = (type, filepath) => {
-    if (this.access_token && this.expires_in) {
-        if (this.isValidAccessToken(this)) {
-            return Promise.resolve(this);
-        }
-    }
-
-    // 票据的读写
-    this.getAccessToken()
-        .then((data) => {
-            // 解析本地token, 如果没有，那么直接获取
-            try {
-                data = JSON.parse(data);
-            } catch (e) {
-                return this.updateAccessToken();
-            }
-
-            // 合法则使用，不合法则更新
-            if (this.isValidAccessToken(data)) {
-                return Promise.resolve(data);
-            } else {
-                return this.updateAccessToken();
-            }
-        })
-        .then((data) => {
-            this.access_token = data.access_token;
-            this.expires_in = data.expires_in;
-
-            this.saveAccessToken(data);
-            return Promise.resolve(data);
-        });
-
+// 获取分组
+Wechat.prototype.fetchGroup = (name) => {
     return new Promise((resolve, reject) => {
         this.fetchAccessToken()
             .then((data) => {
-                var url = api.uploadMaterial + '?access_token=' + data.access_token + '&type=' + type;
-                request({ method: 'POST', url: url, formData: form, json: true })
+                var url = api.group.fetch + '?access_token=' + data.access_token;
+
+                request({ url: url, json: true })
                     .then((response) => {
-                        var _data = response[1];
-                        _data ? resolve(data) : reject('upload material error!');
-                    })
-                    .catch((err) => {
-                        reject(err);
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
+                    });
+            })
+    });
+}
+
+// 检查分组
+Wechat.prototype.checkGroup = (openid) => {
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = api.group.check + '?access_token=' + data.access_token;
+                var opts = {
+                    openid: openid
+                }
+                request({ method: 'POST', url: url, body: opts, json: true })
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
+                    });
+            })
+    });
+}
+
+// 更新分组
+Wechat.prototype.updateGroup = (id, name) => {
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = api.group.update + '?access_token=' + data.access_token;
+                var opts = {
+                    group: {
+                        id: id,
+                        name: name
+                    }
+                }
+                request({ method: 'POST', url: url, body: opts, json: true })
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
+                    });
+            })
+    });
+}
+
+// 移动分组或批量移动分组
+Wechat.prototype.moveGroup = (openid, to_groupid) => {
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = '';
+                var opts = {
+                    to_groupid: to_groupid,
+                };
+                if (_.isArray(openid)) {
+                    url = api.group.batchupdate + '?access_token=' + data.access_token;
+                    opts.openid_list = openid;
+                } else {
+                    url = api.group.move + '?access_token=' + data.access_token;
+                    opts.openid = openid;
+                }
+                request({ method: 'POST', url: url, body: opts, json: true })
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
+                    });
+            })
+    });
+}
+
+// 删除分组
+Wechat.prototype.deleteGroup = (id) => {
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = api.group.del + '?access_token=' + data.access_token;
+                var opts = {
+                    group: {
+                        id: id
+                    }
+                }
+                request({ method: 'POST', url: url, body: opts, json: true })
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
                     });
             })
     });
