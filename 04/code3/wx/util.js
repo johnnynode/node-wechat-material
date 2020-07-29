@@ -1,7 +1,8 @@
 'use strict';
 
-var xml2js = require('../../../04/code1/wx/node_modules/xml2js');
-var Promise = require('../../../04/code1/wx/node_modules/bluebird');
+var xml2js = require('xml2js');
+var Promise = require('bluebird');
+var tpl = require('./tpl')
 
 exports.parseXMLAsync = (xml) => {
     return new Promise((resolve, reject) => {
@@ -9,7 +10,6 @@ exports.parseXMLAsync = (xml) => {
             err ? reject(err) : resolve(content);
         });
     });
-
 };
 
 function formatMessage(result) {
@@ -51,3 +51,21 @@ exports.formatMessage = (xml) => {
         });
     });
 };
+
+exports.tpl = (content, message) => {
+    var info = {};
+    var type = 'text';
+    var fromUserName = message.FromUserName;
+    var toUserName = message.ToUserName;
+
+    Array.isArray(content) && (type = 'news');
+    type = content.type || type;
+
+    info.content = content;
+    info.createTime = new Date().getTime();
+    info.msgType = type;
+    info.toUsername = fromUsername;
+    info.fromUsername = toUsername;
+
+    return tpl.compiled(info)
+}
