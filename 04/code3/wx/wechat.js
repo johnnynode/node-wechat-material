@@ -126,7 +126,7 @@ Wechat.prototype.uploadMaterial = (type, material, permanent) => {
                     opts.formData = form;
                 }
                 // 微信认证的订阅号并不支持永久素材上传, 测试的公众号也不稳定
-                request({ method: 'POST', url: url, formData: form, json: true })
+                request(opts)
                     .then((response) => {
                         var _data = response[1];
                         _data ? resolve(data) : reject('upload material error!');

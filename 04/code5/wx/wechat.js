@@ -19,6 +19,8 @@ var api = {
         upoadNewsPic: prefix + 'media/uploadimg',
         del: prefix + 'material/del_material',
         update: prefix + 'material/update_news',
+        count: prefix + 'material/get_materialcount',
+        batch: prefix + 'material/batchget_material'
     }
 }
 
@@ -88,10 +90,31 @@ Wechat.prototype.fetchMaterial = (mediaId, type, permanent) => {
         this.fetchAccessToken()
             .then((data) => {
                 var url = fetchUrl + '&access_token=' + data.access_token + '&media_id=' + mediaId;
-                if (!permanent && type === 'video') {
-                    url = url.replace('https', 'http');
+                var opts = { method: 'POST', url: url, body: form, json: true };
+                var form = {};
+
+                // 永久素材的判断
+                if (permanent) {
+                    form.media_id = mediaId;
+                    form.access_token = data.access_token;
+                    opts.body = form;
+                } else {
+                    if (type === 'video') {
+                        url = url.replace('https', 'http');
+                    }
+                    url += '&media_id=' + mediaId
                 }
-                resolve(url);
+
+                if (type === 'news' || type === 'video') {
+                    request(opts)
+                        .then((response) => {
+                            var data = response[1];
+                            data ? resolve(data) : reject(err);
+                        });
+                } else {
+                    resolve(url);
+                }
+
             })
     });
 }
@@ -137,6 +160,40 @@ Wechat.prototype.updateMaterial = (mediaId, news) => {
                         var expires_in = now + (data.expires_in - 20) * 1000; // -20 为了提前更新token，给请求，响应留有余量
                         data.expires_in = expires_in;
                         resolve(data);
+                    });
+            })
+    });
+}
+
+// 素材数量
+Wechat.prototype.countMaterial = () => {
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = api.permanent.count + '&access_token=' + data.access_token;
+                request({ method: 'GET', url: url, json: true })
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
+                    });
+            })
+    });
+}
+
+// 批量获取素材
+Wechat.prototype.batchMaterial = (opts) => {
+    opts.type = opts.type || 'image';
+    opts.offset = opts.offset || 0;
+    opts.count = opts.count || 1;
+
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = api.permanent.batch + '&access_token=' + data.access_token;
+                request({ method: 'GET', url: url, body: opts, json: true })
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
                     });
             })
     });
