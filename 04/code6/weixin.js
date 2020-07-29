@@ -199,6 +199,27 @@ exports.reply = function*(next) {
             console.log(groups5);
 
             reply = '12';
+        } else if (content === '13') {
+            var openid = msg.FromUserName;
+            // 测试获取单个用户
+            var user = yield wechatApi.fetchUsers(openid, 'en');
+            console.log(user);
+
+            // 测试批量获取用户
+            var openid_list = [{
+                openid: openid,
+                lang: 'en'
+            }];
+            var users = yield wechatApi.fetchUsers(openid_list, 'en');
+            console.log(users);
+
+            reply = '13';
+        } else if (content === '14') {
+            // 测试获取单个用户
+            var userlist = yield wechatApi.listUsers();
+            console.log(userlist);
+
+            reply = '14';
         }
         this.body = reply;
     }

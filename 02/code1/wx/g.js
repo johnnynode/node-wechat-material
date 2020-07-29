@@ -1,7 +1,7 @@
 'use strict'
 
-var sha1 = require('sha1');
-var Promise = require('bluebird');
+var sha1 = require('../../../04/code1/wx/node_modules/sha1');
+var Promise = require('../../../04/code1/wx/node_modules/bluebird');
 var request = Promise.promisify(require('request'));
 var prefix = 'https://api.weixin.qq.com/cgi-bin/';
 var api = {

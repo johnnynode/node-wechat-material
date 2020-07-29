@@ -30,6 +30,13 @@ var api = {
         move: prefix + 'groups/members/update',
         batchupdate: prefix + '/groups/members/update',
         del: prefix + 'groups/delete',
+    },
+    user: {
+        remark: prefix + 'user/info/updateremark', // 只针对服务号
+        fetch: prefix + 'user/info',
+        batchFetch: prefix + 'user/info/batchget',
+        list: prefix + 'user/get',
+
     }
 }
 
@@ -433,6 +440,73 @@ Wechat.prototype.deleteGroup = (id) => {
                     }
                 }
                 request({ method: 'POST', url: url, body: opts, json: true })
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
+                    });
+            })
+    });
+}
+
+// 备注用户
+Wechat.prototype.remarkUser = (openid, remark) => {
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = api.user.remark + '?access_token=' + data.access_token;
+                var opts = {
+                    openid: openid,
+                    remark: remark
+                };
+                request({ method: 'POST', url: url, body: opts, json: true })
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
+                    });
+            })
+    });
+}
+
+// 获取用户信息或批量获取用户信息
+Wechat.prototype.fetchUsers = (openid, lang) => {
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = '';
+                var opts = {
+                    url: url,
+                    json: true
+                }
+                lang = lang || 'zh_CN'; // 对参数添加默认值
+                if (_.isArray(openid)) {
+                    opts.url = api.user.batchFetch + '?access_token=' + data.access_token;
+                    opts.body = {
+                        user_list: openid
+                    };
+                    opts.method = 'POST'
+                } else {
+                    opts.url = api.user.fetch + '?access_token=' + data.access_token + '&openid=' + openid + '&lang=' + lang;
+                }
+
+                request(opts)
+                    .then((response) => {
+                        var data = response[1];
+                        data ? resolve(data) : reject(data);
+                    });
+            })
+    });
+}
+
+// 获取用户列表
+Wechat.prototype.listUsers = (openid) => {
+    return new Promise((resolve, reject) => {
+        this.fetchAccessToken()
+            .then((data) => {
+                var url = api.user.list + '?access_token=' + data.access_token;
+                if (openid) {
+                    url += +'&next_openid=' + openid;
+                }
+                request({ url: url, json: true })
                     .then((response) => {
                         var data = response[1];
                         data ? resolve(data) : reject(data);
