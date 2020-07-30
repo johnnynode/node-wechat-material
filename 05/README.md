@@ -24,3 +24,8 @@
 - 文档：https://developers.weixin.qq.com/doc/offiaccount/Account_Management/Generating_a_Parametric_QR_Code.html
 - 具体参考：05/code4
 
+5 ) **微信语义接口**
+
+- 文档：https://developers.weixin.qq.com/doc/offiaccount/Intelligent_Interface/Natural_Language_Processing.html
+- 服务号功能
+- 具体参考：05/code5
