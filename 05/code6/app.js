@@ -86,7 +86,7 @@ app.use(function*(next) {
         var access_token = data.access_token;
         var ticketData = yield wechatApi.fetchTicket(access_token);
         var ticket = ticketData.ticket;
-        var url = this.href;
+        var url = this.href; // 注意不能有端口哦，默认80
         var params = sign(ticket, url);
         this.body = ejs.render(tpl, params);
         return next;
