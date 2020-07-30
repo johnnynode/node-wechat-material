@@ -59,6 +59,9 @@ var api = {
     },
     shortUrl: {
         create: prefix + 'shorturl'
+    },
+    ticket: {
+        get: prefix + 'ticket/getticket'
     }
 }
 
@@ -118,7 +121,7 @@ Wechat.prototype.updateAccessToken = () => {
 }
 
 // 通用的获取token的接口
-Wechat.prototype.fetchAccessToken = () => {
+Wechat.prototype.fetchAccessToken = (access_token) => {
     if (this.access_token && this.expires_in) {
         if (this.isValidAccessToken(this)) {
             return Promise.resolve(this);
@@ -143,12 +146,58 @@ Wechat.prototype.fetchAccessToken = () => {
             }
         })
         .then((data) => {
-            this.access_token = data.access_token;
-            this.expires_in = data.expires_in;
-
             this.saveAccessToken(data);
             return Promise.resolve(data);
         });
+}
+
+// 通用的获取ticket的接口
+Wechat.prototype.fetchTicket = (access_token) => {
+    return this.getTicket()
+        .then((data) => {
+            // 解析本地token, 如果没有，那么直接获取
+            try {
+                data = JSON.parse(data);
+            } catch (e) {
+                return this.updateTicket(access_token);
+            }
+
+            // 合法则使用，不合法则更新
+            if (this.isValidTicket(data)) {
+                return Promise.resolve(data);
+            } else {
+                return this.updateTicket(access_token);
+            }
+        })
+        .then((data) => {
+            this.saveTicket(data);
+            return Promise.resolve(data);
+        });
+}
+
+// 更新ticket接口
+Wechat.prototype.updateTicket = (access_token) => {
+    var url = api.ticket.get + '?access_token=' + access_token + '&type=jsapi';
+    return new Promise((resolve, reject) => {
+        request({ url: url, json: true })
+            .then((response) => {
+                var data = response[1];
+                var now = new Date().getTime();
+                var expires_in = now + (data.expires_in - 20) * 1000; // -20 为了提前更新token，给请求，响应留有余量
+                data.expires_in = expires_in;
+                resolve(data);
+            });
+    });
+}
+
+// 判断ticket是否有效
+Wechat.prototype.isValidTicket = (data) => {
+    if (!data || !data.ticket || !data.expires_in) {
+        return false;
+    }
+    var expires_in = data.expires_in;
+    var now = new Date().getTime();
+    return now < expires_in;
 }
 
 // 回复程序封装

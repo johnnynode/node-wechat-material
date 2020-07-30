@@ -108,7 +108,7 @@ Wechat.prototype.updateAccessToken = () => {
 }
 
 // 通用的获取token的接口
-Wechat.prototype.fetchAccessToken = (type, filepath) => {
+Wechat.prototype.fetchAccessToken = () => {
     if (this.access_token && this.expires_in) {
         if (this.isValidAccessToken(this)) {
             return Promise.resolve(this);
@@ -116,7 +116,7 @@ Wechat.prototype.fetchAccessToken = (type, filepath) => {
     }
 
     // 票据的读写
-    this.getAccessToken()
+    return this.getAccessToken()
         .then((data) => {
             // 解析本地token, 如果没有，那么直接获取
             try {
@@ -139,21 +139,6 @@ Wechat.prototype.fetchAccessToken = (type, filepath) => {
             this.saveAccessToken(data);
             return Promise.resolve(data);
         });
-
-    return new Promise((resolve, reject) => {
-        this.fetchAccessToken()
-            .then((data) => {
-                var url = api.uploadMaterial + '?access_token=' + data.access_token + '&type=' + type;
-                request({ method: 'POST', url: url, formData: form, json: true })
-                    .then((response) => {
-                        var _data = response[1];
-                        _data ? resolve(data) : reject('upload material error!');
-                    })
-                    .catch((err) => {
-                        reject(err);
-                    });
-            })
-    });
 }
 
 // 回复程序封装
