@@ -72,6 +72,8 @@ function Wechat(opts) {
     this.appSecret = opts.appSecret;
     this.getAccessToken = opts.getAccessToken;
     this.saveAccessToken = opts.saveAccessToken;
+    this.getTicket = opts.getTicket;
+    this.saveTicket = opts.saveTicket;
 
     // 票据的读写
     this.getAccessToken()
